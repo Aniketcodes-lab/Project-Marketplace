@@ -2,6 +2,9 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 
 urlpatterns = [
-    # -------------------- new folder structure -----------------------------
-             # For register, login, authentication
+#------------------------Common Views-------------------------------
+
+# -------------------- new folder structure -----------------------------
+path('', include('api.views.auth.urls')),   # For register, login, authentication
+path('', include('api.views.contributer.urls'))  
 ]
