@@ -78,12 +78,12 @@ class Project(models.Model):
         ("intermediate", "Intermediate"),
         ("advanced", "Advanced"),
     ])
-    price = models.DecimalField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     file = models.FileField(upload_to='project/')
     demo_url = models.URLField(blank=True, null= True)
     token_to_access = models.TextField(blank= True, null= True)
     created_at = models.DateTimeField(auto_now_add=True)
-    approved = models.booleanField(default = False)
+    approved = models.BooleanField(default = False)
     rejected_reason = models.TextField(blank=True, null=True)  # last rejection reason
     
     def __str__(self):
