@@ -5,6 +5,6 @@ urlpatterns = [
 #------------------------Common Views-------------------------------
 
 # -------------------- new folder structure -----------------------------
-path('', include('api.views.auth.urls')),   # For register, login, authentication
-path('', include('api.views.contributer.urls'))  
+    path('', include('api.views.auth.urls')),        # For authentication (login, register)
+    path('', include('api.views.contributor.urls')),  # For contributor-related routes
 ]
