@@ -1,15 +1,46 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from datetime import datetime
+import uuid
+from datetime import timedelta
+from django.utils import timezone
+from django.conf import settings
+
+difficulty_choices = [
+    ("beginner", "Beginner"), 
+    ("intermediate", "Intermediate"),
+    ("advanced", "Advanced"),
+]
+
+ProjectApprovalRequestStatus = [
+    ("pending", "Pending"),
+    ("approved", "Approved"),
+    ("rejected", "Rejected")
+]
+
+CustomRequestStatus = [
+    ("open", "Open"),
+    ("in_progress", "In Progress"),
+    ("completed", "Completed"),
+    ("closed", "Closed"),
+    ("cancelled", "Cancelled"),
+]
 
 def getTime():
     return datetime.now().strftime("%I:%M %p")
 
-# ----------------------------
-# Custom User Manager
-# ----------------------------
+
+class AdminLogin(models.Model):
+    username = models.CharField(max_length=255, unique=True)
+    email = models.EmailField(verbose_name="Email", max_length=255, unique=True)
+    password = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.username
+    
+
 class UserManager(BaseUserManager):
-    def create_user(self, email, first_name, last_name, phone_number, password=None):
+    def create_user(self, email, first_name, last_name, phone_number, password=None, role="buyer"):
         if not email:
             raise ValueError("The Email field must be set")
         email = self.normalize_email(email)
@@ -18,99 +49,76 @@ class UserManager(BaseUserManager):
             first_name=first_name,
             last_name=last_name,
             phone_number=phone_number,
+            role=role,
         )
         user.set_password(password)
         user.save(using=self._db)
         return user
-    
-    # def create_superuser(self, email, first_name, last_name, phone_number, password=None, **extra_fields):
-    #     """
-    #     Create and return a superuser with the given email, username, and password.
-    #     """
-    #     # Ensure that is_staff and is_superuser are True for superuser
-    #     extra_fields.setdefault('is_staff', True)
-    #     extra_fields.setdefault('is_superuser', True)
-
-    #     # Pass all necessary fields, including first_name, last_name, and phone_number
-    #     return self.create_user(email, first_name, last_name, phone_number, password, **extra_fields)
 
 
-
-# ----------------------------
-# Custom User Model
-# ----------------------------
 class User(AbstractBaseUser):
-    ROLE_CHOICES = [
-        ('buyer', 'Buyer'),
-        ('contributor', 'Contributor'),
-        ('admin', 'Admin'),
-    ]
+    username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(verbose_name="Email", max_length=255, unique=True)
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
-    phone_number = models.CharField(max_length=30 ,null=True, blank= True)
-    profile_picture = models.ImageField(upload_to='profiles/', null=True, blank= True)
+    phone_number = models.CharField(max_length=30, null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profiles/', null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
-    verified = models.BooleanField(default=False)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="buyer")
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)  # for Django admin
+    is_contributor = models.BooleanField(default=False)
 
     objects = UserManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name","phone_number","password"]
+    REQUIRED_FIELDS = ["first_name", "last_name", "username"]
 
     def __str__(self):
         return f"{self.email} ({self.role})"
+
+
+class Technology(models.Model):
+    name = models.CharField(max_length=100)
     
-# ----------------------------
-# Project Model
-# ----------------------------
+    def __str__(self):
+        return self.name
+
+
+class ApplicationCategory(models.Model):
+    name = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return self.name
+
+
 class Project(models.Model):
-    contributor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="projects")
+    contributor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="projects", limit_choices_to={'role': 'contributor'})
     title = models.CharField(max_length=255)
     description = models.TextField()
-    tech_stack = models.CharField(max_length=255)
-    category = models.CharField(max_length=255)
-    difficulty = models.CharField(max_length=50, choices=[
-        ("beginner", "Beginner"),
-        ("intermediate", "Intermediate"),
-        ("advanced", "Advanced"),
-    ])
+    tech_stack = models.ManyToManyField(Technology)
+    category = models.ManyToManyField(ApplicationCategory)
+    difficulty = models.CharField(max_length=50, choices=difficulty_choices)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    file = models.FileField(upload_to='project/')
-    demo_url = models.URLField(blank=True, null= True)
-    token_to_access = models.TextField(blank= True, null= True)
+    readme_file = models.FileField(upload_to='project/readme/', blank=True, null=True)
+    github_link = models.URLField(blank=True, null=True)
+    github_token = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    approved = models.BooleanField(default = False)
-    rejected_reason = models.TextField(blank=True, null=True)  # last rejection reason
-    
+
     def __str__(self):
         return self.title
-    
-# ----------------------------
-# Admin Approval/Rejection Log
-# ----------------------------
-class ProjectApprovalLog(models.Model):
-    Project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="approaval_log")
-    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, limit_choices_to={'role': 'admin'})    
-    status = models.CharField(max_length=20, choices=[
-        ("approved", "Approved"),
-        ("rejected", "Rejected")
-    ])
-    comment = models.TextField(blank= True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ProjectApprovalRequest(models.Model):
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="approval_request")
+    status = models.CharField(max_length=20, choices=ProjectApprovalRequestStatus, default="pending")
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    admin_comment = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.Project.title} - {self.status}"
+        return f"{self.project.title} - {self.status}"
 
-# ----------------------------
-# Cart
-# ----------------------------
+
 class CartItem(models.Model):
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cart",
-                              limit_choices_to={'role': 'buyer'})
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cart", limit_choices_to={'role': 'buyer'})
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     added_at = models.DateTimeField(auto_now_add=True)
 
@@ -119,49 +127,20 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"{self.buyer.email} -> {self.project.title}"
-    
-    
-# ----------------------------
-# Orders / Purchases
-# ----------------------------
+     
+
 class Order(models.Model):
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders",
-                              limit_choices_to={'role': 'buyer'})
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders", limit_choices_to={'role': 'buyer'})
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=[
-        ("pending", "Pending"),
-        ("completed", "Completed"),
-        ("failed", "Failed"),
-    ], default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Order #{self.id} - {self.project.title}"
 
 
-# ----------------------------
-# Contributor Earnings
-# ----------------------------
-class Earning(models.Model):
-    contributor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="earnings",
-                                    limit_choices_to={'role': 'contributor'})
-    order = models.OneToOneField(Order, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    paid_out = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Earning {self.amount} for {self.contributor.email}"
-
-
-# ----------------------------
-# Reviews & Ratings
-# ----------------------------
 class Review(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="reviews")
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE,
-                              limit_choices_to={'role': 'buyer'})
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'buyer'})
     rating = models.IntegerField(default=5)  # 1–5 stars
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -173,20 +152,26 @@ class Review(models.Model):
         return f"{self.project.title} - {self.rating}⭐"
 
 
-# ----------------------------
-# Custom Project Requests
-# ----------------------------
+class ProjectInquiry(models.Model):
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="inquiries", null=True, blank=True)
+    technology = models.ManyToManyField(Technology, related_name="inquiries", blank=True)
+    application_category = models.ManyToManyField(ApplicationCategory, related_name="inquiries", blank=True)
+    message = models.TextField()
+    budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Inquiry by {self.name}"
+
+
 class CustomRequest(models.Model):
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="requests",
-                              limit_choices_to={'role': 'buyer'})
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="requests", limit_choices_to={'role': 'buyer'})
     title = models.CharField(max_length=255)
     description = models.TextField()
     budget = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=[
-        ("open", "Open"),
-        ("in_progress", "In Progress"),
-        ("completed", "Completed"),
-    ], default="open")
+    status = models.CharField(max_length=20, choices=CustomRequestStatus, default="open")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -195,8 +180,7 @@ class CustomRequest(models.Model):
 
 class Bid(models.Model):
     request = models.ForeignKey(CustomRequest, on_delete=models.CASCADE, related_name="bids")
-    contributor = models.ForeignKey(User, on_delete=models.CASCADE,
-                                    limit_choices_to={'role': 'contributor'})
+    contributor = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'contributor'})
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     message = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -206,3 +190,77 @@ class Bid(models.Model):
 
     def __str__(self):
         return f"Bid {self.amount} by {self.contributor.email}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    data = models.JSONField(default=dict)
+    # data = {
+    #     "type": "order" / "review" / "message" / etc
+    #     "message": "Your order has been shipped.",
+    #     "related_id": 123,  # e.g., order ID, project ID, etc.
+    #     "related_title": "Order #123",
+    #     "related_url": "/orders/123",
+    # }
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.user.email} - {'Read' if self.is_read else 'Unread'}"
+    
+
+
+
+
+
+class Token(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tokens")
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    data = models.JSONField(default=dict)
+    # data = {
+    #     "type": "order" / "review" / "message" / etc
+    # }
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Token for {self.user.email}"
+    
+    @staticmethod
+    def _get_default_duration(duration):
+        return duration or timedelta(hours=settings.TOKEN_VALIDATION_DURATION_IN_HOURS)
+
+    def is_expired(self, duration=None):
+        duration = self._get_default_duration(duration)
+        return timezone.now() > self.created_at + duration
+
+    def time_left(self, duration=None):
+        duration = self._get_default_duration(duration)
+        remaining = (self.created_at + duration) - timezone.now()
+        return max(timedelta(0), remaining)
+
+    def refresh(self):
+        self.token = uuid.uuid4()
+        self.created_at = timezone.now()
+        self.save()
+        return self, self.token
+
+    def delete_token(self):
+        self.delete()
+
+    @classmethod
+    def create_token(cls, user, data=None):
+        token = cls.objects.create(user=user, data=data or {})
+        return token, token.token
+
+    @classmethod
+    def validate_token(cls, token_str, duration=None):
+        try:
+            token = cls.objects.get(token=token_str)
+            if token.is_expired(duration):
+                token.delete()
+                return None
+            return token
+        except cls.DoesNotExist:
+            return None
+
+
