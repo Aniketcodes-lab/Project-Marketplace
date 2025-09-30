@@ -66,3 +66,89 @@ Pipfile.lock
 
 # celery beat schedule file
 celerybeat-schedule
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+db.sqlite3
+db.sqlite3-journal
+
+# Media & static files
+media/
+staticfiles/        # collected static files
+static/             # optional, only if generated (not managed in version control)
+
+# Local environment variables
+.env
+.env.*
+*.env
+
+# Secrets / config overrides
+settings_local.py
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Test & coverage
+.coverage
+.tox/
+.nox/
+pytest_cache/
+.pytest_cache/
+.mypy_cache/
+coverage.xml
+htmlcov/
+
+# Python distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node (if using frontend tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Mac & Windows system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Docker artifacts (if using Docker)
+*.pid
+*.pid.lock
+docker-compose.override.yml

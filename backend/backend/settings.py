@@ -8,12 +8,6 @@ SECRET_KEY = config('SECRET_KEY', default='insecure-secret-key-do-not-use-in-pro
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-
-
-
-
-
-
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
 
 TOKEN_VALIDATION_DURATION_IN_HOURS = config('TOKEN_VALIDATION_DURATION_IN_HOURS', default=24, cast=int)
@@ -29,6 +23,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'api',
+    'users',
+    'models',
+    'notifications',
+    'projects',
+    # 'auth',
 ]
 
 MIDDLEWARE = [
@@ -83,7 +82,7 @@ DATABASES = {
 }
 
 
-AUTH_USER_MODEL = 'api.User'
+AUTH_USER_MODEL = 'models.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
