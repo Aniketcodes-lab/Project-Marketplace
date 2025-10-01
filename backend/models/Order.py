@@ -10,3 +10,8 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.id} - {self.project.title}"
+    
+    @classmethod
+    def create_order(cls, buyer, project):
+        order = cls.objects.create(buyer=buyer, project=project)
+        return order

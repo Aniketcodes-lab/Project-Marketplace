@@ -42,7 +42,7 @@ class Token(models.Model):
         self.delete()
 
     @classmethod
-    def create_token(cls, user, data=None):
+    def create_token(cls, user, data=dict()):
         token = cls.objects.create(user=user, data=data or {})
         return token, token.token
 

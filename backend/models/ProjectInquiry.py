@@ -16,4 +16,20 @@ class ProjectInquiry(models.Model):
 
     def __str__(self):
         return f"Inquiry by {self.name}"
+    
+    @classmethod
+    def create_inquiry(cls, name, email, message, user=None, technology_list=None, application_category_list=None, budget=None):
+        inquiry = cls.objects.create(
+            name=name,
+            email=email,
+            message=message,
+            user=user,
+            budget=budget
+        )
+        if technology_list:
+            inquiry.technology.set(technology_list)
+        if application_category_list:
+            inquiry.application_category.set(application_category_list)
+        inquiry.save()
+        return inquiry
 

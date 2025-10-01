@@ -17,6 +17,11 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.user.email} - {'Read' if self.is_read else 'Unread'}"
     
+    @classmethod
+    def create_notification(cls, user, data={}):
+        notification = cls.objects.create(user=user, data=data)
+        return notification
+    
 
 
 
